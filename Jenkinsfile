@@ -88,8 +88,7 @@ pipeline {
             agent { label 'workernode3' }
             steps {
                 sh """
-                 trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER}
-                  
+                trivy image --exit-code 0 --severity HIGH, CRITICAL ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER}
                 """
             }
         }
