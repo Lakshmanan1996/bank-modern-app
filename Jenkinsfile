@@ -10,13 +10,11 @@ pipeline {
     environment {
         DOCKERHUB_USER = "lakshvar96"
         IMAGE = "banking"
-        
         GIT_REPO = "https://github.com/Lakshmanan1996/bank-modern-app.git"
     }
 
     stages {
 
-        /* ===================== CHECKOUT ===================== */
         stage('Checkout Code') {
             agent { label 'workernode1' }
             steps {
@@ -27,7 +25,6 @@ pipeline {
             }
         }
 
-        /* ===================== STASH SOURCE ===================== */
         stage('Stash Source') {
             agent { label 'workernode1' }
             steps {
@@ -35,29 +32,25 @@ pipeline {
             }
         }
 
-        /* ===================== SONARQUBE ===================== */
         stage('SonarQube Analysis') {
             agent { label 'workernode2' }
             steps {
                 unstash 'source-code'
-
                 script {
                     def scannerHome = tool 'SonarQubeScanner'
                     withSonarQubeEnv('sonarqube') {
                         sh """
                         ${scannerHome}/bin/sonar-scanner \
-                          -Dsonar.projectKey=banking \
-                          -Dsonar.projectName=banking \
-                          -Dsonar.sources=. \
-                          -Dsonar.exclusions=**/node_modules/**
+                        -Dsonar.projectKey=banking \
+                        -Dsonar.projectName=banking \
+                        -Dsonar.sources=. \
+                        -Dsonar.exclusions=**/node_modules/**
                         """
                     }
                 }
             }
         }
 
-        /*===================== QUALITY GATE ===================== */
-        
         stage('Quality Gate') {
             agent { label 'workernode2' }
             steps {
@@ -66,39 +59,30 @@ pipeline {
                 }
             }
         }
-      
 
-        /* ===================== DOCKER BUILD ===================== */
         stage('Docker Build') {
             agent { label 'workernode3' }
             steps {
                 unstash 'source-code'
-
                 sh """
-                # Frontend Build
-                docker build -t ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER} 
+                docker build -t ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER} .
                 docker tag ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER} ${DOCKERHUB_USER}/${IMAGE}:latest
-
-                
-            }
-        }
-
-        /* ===================== TRIVY SCAN ===================== */
-        stage('Trivy Scan') {
-            agent { label 'workernode3' }
-            steps {
-                sh """
-                trivy image --exit-code 0 --severity HIGH, CRITICAL ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER}
                 """
             }
         }
 
-        /* ===================== PUSH TO DOCKER HUB ===================== */
+        stage('Trivy Scan') {
+            agent { label 'workernode3' }
+            steps {
+                sh """
+                trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER}
+                """
+            }
+        }
+
         stage('Push Image') {
             agent { label 'workernode3' }
             steps {
-                unstash 'source-code'
-
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DOCKER_USER',
@@ -110,7 +94,6 @@ pipeline {
                 sh """
                 docker push ${DOCKERHUB_USER}/${IMAGE}:${BUILD_NUMBER}
                 docker push ${DOCKERHUB_USER}/${IMAGE}:latest
-
                 """
             }
         }
